@@ -1,0 +1,87 @@
+# Azure Voice Language Lab - Docker Compose
+# ============================================
+#
+# Configuração Docker Compose para executar o Azure Voice Language Lab
+
+version: '3.8'
+
+services:
+  # Aplicação Web Streamlit
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azure-voice-language-lab-web
+    ports:
+      - "8501:8501"
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}
+      - AZURE_LANGUAGE_KEY=${AZURE_LANGUAGE_KEY}
+      - AZURE_LANGUAGE_ENDPOINT=${AZURE_LANGUAGE_ENDPOINT}
+      - AZURE_TRANSLATOR_KEY=${AZURE_TRANSLATOR_KEY}
+      - AZURE_TRANSLATOR_REGION=${AZURE_TRANSLATOR_REGION}
+    volumes:
+      # Montar diretório de saída para persistir arquivos gerados
+      - ./output:/app/output
+      - ./audio_samples:/app/audio_samples
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - azure-voice-lab-network
+
+  # Serviço opcional para testes
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azure-voice-language-lab-tests
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}
+      - AZURE_LANGUAGE_KEY=${AZURE_LANGUAGE_KEY}
+      - AZURE_LANGUAGE_ENDPOINT=${AZURE_LANGUAGE_ENDPOINT}
+      - AZURE_TRANSLATOR_KEY=${AZURE_TRANSLATOR_KEY}
+      - AZURE_TRANSLATOR_REGION=${AZURE_TRANSLATOR_REGION}
+    volumes:
+      - .:/app
+    command: pytest tests/ -v
+    networks:
+      - azure-voice-lab-network
+    profiles:
+      - tests
+
+  # Serviço opcional para exemplos
+  examples:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azure-voice-language-lab-examples
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}
+      - AZURE_LANGUAGE_KEY=${AZURE_LANGUAGE_KEY}
+      - AZURE_LANGUAGE_ENDPOINT=${AZURE_LANGUAGE_ENDPOINT}
+      - AZURE_TRANSLATOR_KEY=${AZURE_TRANSLATOR_KEY}
+      - AZURE_TRANSLATOR_REGION=${AZURE_TRANSLATOR_REGION}
+    volumes:
+      - .:/app
+    command: python examples/basic_usage.py
+    networks:
+      - azure-voice-lab-network
+    profiles:
+      - examples
+
+networks:
+  azure-voice-lab-network:
+    driver: bridge
+
+volumes:
+  output:
+  logs:
